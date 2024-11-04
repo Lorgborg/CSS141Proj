@@ -14,7 +14,7 @@ const prompt = (query) => new Promise((resolve) => rl.question(query, resolve));
 
 // initializing the matrix
 const equation = []
-let type = 0;
+let type = 0, num = 4;
 let guess = []
 
 // menu descriptions
@@ -51,50 +51,76 @@ console.log("\nPlease enter equations in either Matrix form:\n12,3,-5,1\n1,5,3,2
             equation.push(raw)
         }
     }
-    for(let i = 0; i != 3; i++) {
-        guess[i] = await prompt(`Enter initial guess for x${i+1}: `)
+    for (let i = 0; i != n; i++) {
+        while (true) {
+            const guessInput = await prompt(`Enter initial guess for x${i + 1}: `);
+            const guessValue = parseFloat(guessInput);
+            if (!isNaN(guessValue)) {
+                guess[i] = guessValue;
+                break;
+            } else {
+                console.log("Please enter a valid number.");
+            }
+        }
     }
-    // asks for the type
-    type = await prompt("[0] Gauss-seidel or [1] Gauss-jacobi?\n")
+
+    while (true) {
+        num = await prompt("Please enter decimal place of error: ");
+        if(isNaN(parseInt(num))) {
+            console.log("Please enter a valid whole number")
+        } else {
+            break;
+        }
+    }
+
+    while (true) {
+        type = await prompt("[0] Gauss-seidel or [1] Gauss-jacobi?\n");
+        if (type === "0" || type === "1") {
+            type = parseInt(type);
+            break;
+        } else {
+            console.log("Please enter a valid choice (0 or 1).");
+        }
+    }
     // closes the input mode
     rl.close()
 })()
 
 // this function triggers after input mode is closed. We'll be placing the formula stuff in here
+// In index.js (after determining the type and running the method)
 rl.on('close', () => {
-    let DD = true;
-    let i = 0
-    
+    let results = [];
+    let DD = true, i = 0;
     for(arr of equation){
-        if(arr[i] >= arr.reduce((partialSum, a) => partialSum + Math.abs(a), 0)-(Math.abs(arr[i])+Math.abs(arr[arr.length-1]))){
-            
-        } else {
+        if(arr[i] <= arr.reduce((partialSum, a) => partialSum + Math.abs(a), 0)-(Math.abs(arr[i])+Math.abs(arr[arr.length-1]))){
             console.log("Not diagonally dominant, re-arranging")
-            let formatted = reformat(equation.map(row => row.slice(0, 3)))
+            let formatted = reformat(equation.map(row => row.slice(0, 4)))
             if(formatted == 0) {
                 DD = false
             } else {
                 for (let i = 0; i < 3; i++) {
-                    equation[i].splice(0, 3, ...formatted[i]);
+                    equation[i].splice(0, 4, ...formatted[i]);
                 }
                 console.log(equation)
             }
         }
         i++
     }
-    if(DD) {
-        if(type == 0){
-            seidel(equation, guess, true)
-        } else if (type == 1) {
-            jacobi(equation)
-        }
-    } else {
-        console.log("This equation will not converge!")
-        if(type == 0) {
-            seidel(equation, guess, false)
-        } else if (type == 1) {
-            jacobi(equation)
-        }
+    if (type == 0) {
+        results = seidel(equation, guess, num, DD);
+    } else if (type == 1) {
+        results = jacobi(equation, guess, num, DD);
     }
-    process.exit(0)
-})
+
+    // Output the results in a clean table format
+    console.log("\nResults:\n");
+    console.log("Iteration |   x1   |   x2   |   x3   |    Error (%)    ");
+    console.log("-----------------------------------------------------");
+    results.forEach(result => {
+        console.log(`${result.iteration}        | ${result.x1.toFixed(4)} | ${result.x2.toFixed(4)} | ${result.x3.toFixed(4)} | ${result.error.toFixed(parseInt(num)+1)} `);
+    });
+
+    if(!DD) {
+        console.log("\nEquation did not converge.")
+    }
+});
